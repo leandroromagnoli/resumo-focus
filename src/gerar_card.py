@@ -60,6 +60,12 @@ MESES_PT = [
 def _consumir_bloco_ano(tokens: list, indice: int):
     """Consome um bloco de ano: há4, há1, hoje, [seta], (semanas), resp30.
 
+    A 'seta' é a coluna "Comp. semanal" que o próprio Focus já publica -
+    ela compara o valor de "hoje" com o de "há 1 semana" e indica se a
+    mediana subiu (▲), caiu (▼) ou ficou estável (sem seta, tratado como
+    None) desde o boletim anterior. Não é algo calculado por este script;
+    é lido tal como o BCB reporta, então nunca "inventa" a comparação.
+
     Retorna (valor_hoje, seta, novo_indice). 'seta' é '▲', '▼' ou None
     (quando o indicador está estável).
     """
