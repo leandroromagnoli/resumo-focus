@@ -46,6 +46,25 @@ def _extrair_data_do_nome(html_path: Path) -> str:
     return match.group(1)
 
 
+def _extrair_assunto_do_html(html: str) -> str | None:
+    """Lê o assunto de uma tag <meta name="assunto" content="..."> no HTML.
+
+    É assim que a Routine comunica o assunto já calculado (incluindo o
+    prefixo '[REVISAR]' quando o texto-fonte está com 4 a 7 dias) para o
+    workflow de envio, que só recebe o arquivo .html - sem essa tag, o
+    assunto seria sempre derivado apenas do nome do arquivo, perdendo essa
+    decisão de frescor.
+    """
+    match = re.search(
+        r'<meta\s+name=["\']assunto["\']\s+content=["\']([^"\']*)["\']',
+        html,
+        re.IGNORECASE,
+    )
+    if match:
+        return match.group(1)
+    return None
+
+
 def _html_para_texto_simples(html: str) -> str:
     """Gera um fallback em texto simples a partir do HTML, removendo tags.
 
@@ -72,6 +91,10 @@ def montar_mensagem(
     """
     html = html_path.read_text(encoding="utf-8")
 
+    # Prioridade: --assunto explícito > tag <meta name="assunto"> no HTML
+    # (como a Routine grava) > derivado da data no nome do arquivo.
+    if assunto is None:
+        assunto = _extrair_assunto_do_html(html)
     if assunto is None:
         data_publicacao = _extrair_data_do_nome(html_path)
         assunto = f"Resumo Focus - {data_publicacao}"
