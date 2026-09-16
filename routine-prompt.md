@@ -23,10 +23,11 @@ O download do PDF e a extração do texto já foram feitos por um GitHub Action 
 - No '<head>', uma tag '<meta name="assunto" content="...">' com o assunto exato que o e-mail deve usar ('Resumo Focus - AAAA-MM-DD', com '[REVISAR]' na frente quando aplicável, conforme o passo 2). É assim que o assunto chega até o workflow de envio - sem essa tag, o assunto cai no padrão sem o prefixo.
 - No topo, a logo da Análise Macro, carregada desta URL: 'https://analisemacro.com.br/wp-content/uploads/dlm_uploads/2021/10/logo_am.png'
 - Um título 'Focus - AAAA-MM-DD'
+- O card visual: se existir o arquivo 'output/focus/card_focus_AAAA-MM-DD.jpg' (gerado por 'src/gerar_card.py', já commitado pelo Action de download - a Routine não precisa gerá-lo), inclua '<img src="cid:card_focus" alt="Resumo visual: IPCA, PIB, Câmbio, Selic" style="max-width: 100%;">'. Se o arquivo não existir para essa data, pule este item sem tentar gerar a imagem.
 - O resumo executivo em parágrafo e as três revisões em lista.
 - Use as cores da marca: azul '#282f6b' nos títulos.
 
-6. **Inspecione** o HTML gerado: a tag '<meta name="assunto">' está presente e com o assunto correto (incluindo '[REVISAR]' quando aplicável), a logo aparece, as medianas batem com o '.txt', há ao menos uma citação literal entre aspas.
+6. **Inspecione** o HTML gerado: a tag '<meta name="assunto">' está presente e com o assunto correto (incluindo '[REVISAR]' quando aplicável), a logo aparece, a tag do card ('cid:card_focus') está presente quando o arquivo 'card_focus_AAAA-MM-DD.jpg' existe, as medianas batem com o '.txt', há ao menos uma citação literal entre aspas.
 
 7. **Publique o HTML.** Faça 'git add output/focus/focus_AAAA-MM-DD.html', commit e 'git push' para 'main'. É esse push que dispara o Action 'focus-enviar.yml', responsável pelo envio do e-mail - a Routine não envia e-mail diretamente. O assunto usado pelo envio vem da tag '<meta name="assunto">' gravada no passo 5 (com '[REVISAR]' na frente quando aplicável, conforme o passo 2); sem essa tag, o assunto cairia no padrão sem o prefixo. Destinatário, remetente e senha de app ficam nos Secrets do repositório ('FOCUS_EMAIL_DEST', 'FOCUS_SMTP_USER', 'FOCUS_SMTP_PASSWORD') - nunca no arquivo HTML nem em qualquer outro arquivo commitado.
 

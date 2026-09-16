@@ -30,10 +30,13 @@ jobs:
       - name: Extrair texto do PDF
         run: python src/extrair_texto.py
 
+      - name: Gerar card visual (IPCA, PIB, Câmbio, Selic)
+        run: python src/gerar_card.py
+
       - name: Commitar arquivos baixados
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/focus_*.pdf data/focus_*.txt
+          git add data/focus_*.pdf data/focus_*.txt output/focus/card_focus_*.jpg
           git diff --staged --quiet || git commit -m "Baixa boletim Focus semanal"
           git push

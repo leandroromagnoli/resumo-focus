@@ -14,6 +14,7 @@ import os
 import re
 import smtplib
 import sys
+from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -22,6 +23,9 @@ SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 465
 
 PASTA_RESUMOS = Path("output/focus")
+
+# Content-ID usado para referenciar o card inline no HTML: <img src="cid:card_focus">.
+CID_CARD = "card_focus"
 
 
 def localizar_html_mais_recente(pasta: Path = PASTA_RESUMOS) -> Path | None:
@@ -65,6 +69,18 @@ def _extrair_assunto_do_html(html: str) -> str | None:
     return None
 
 
+def _localizar_card(html_path: Path) -> Path | None:
+    """Retorna o card_focus_AAAA-MM-DD.jpg correspondente ao HTML, se existir.
+
+    O card é gerado por src/gerar_card.py (determinístico, sem LLM) e
+    commitado junto com os dados baixados - aqui só verificamos se ele
+    existe para o mesmo dia do resumo.
+    """
+    data_publicacao = _extrair_data_do_nome(html_path)
+    caminho_card = html_path.parent / f"card_focus_{data_publicacao}.jpg"
+    return caminho_card if caminho_card.exists() else None
+
+
 def _html_para_texto_simples(html: str) -> str:
     """Gera um fallback em texto simples a partir do HTML, removendo tags.
 
@@ -99,17 +115,28 @@ def montar_mensagem(
         data_publicacao = _extrair_data_do_nome(html_path)
         assunto = f"Resumo Focus - {data_publicacao}"
 
-    mensagem = MIMEMultipart("alternative")
+    # "related" por fora (para poder embutir a imagem inline) e
+    # "alternative" por dentro (texto simples + HTML), como recomenda o RFC.
+    mensagem = MIMEMultipart("related")
     mensagem["Subject"] = assunto
     mensagem["From"] = remetente
     mensagem["To"] = ", ".join(destinatarios)
     if bcc:
         mensagem["Bcc"] = ", ".join(bcc)
 
+    alternativas = MIMEMultipart("alternative")
     # A ordem importa: o cliente de e-mail usa a ÚLTIMA parte compatível,
     # então o texto simples (fallback) vai primeiro e o HTML por último.
-    mensagem.attach(MIMEText(_html_para_texto_simples(html), "plain", "utf-8"))
-    mensagem.attach(MIMEText(html, "html", "utf-8"))
+    alternativas.attach(MIMEText(_html_para_texto_simples(html), "plain", "utf-8"))
+    alternativas.attach(MIMEText(html, "html", "utf-8"))
+    mensagem.attach(alternativas)
+
+    caminho_card = _localizar_card(html_path)
+    if caminho_card is not None:
+        imagem = MIMEImage(caminho_card.read_bytes(), _subtype="jpeg")
+        imagem.add_header("Content-ID", f"<{CID_CARD}>")
+        imagem.add_header("Content-Disposition", "inline", filename=caminho_card.name)
+        mensagem.attach(imagem)
 
     return mensagem
 
@@ -201,12 +228,18 @@ def main():
     )
 
     if args.dry_run:
+        caminho_card = _localizar_card(html_path)
         print("--- MODO DRY-RUN: nada será enviado ---")
         print(f"De: {mensagem['From']}")
         print(f"Para: {mensagem['To']}")
         if mensagem["Bcc"]:
             print(f"Cco: {mensagem['Bcc']}")
         print(f"Assunto: {mensagem['Subject']}")
+        print(
+            f"Card inline: {caminho_card}"
+            if caminho_card
+            else "Card inline: nenhum encontrado (e-mail vai só com o HTML)"
+        )
         print("--- corpo HTML ---")
         print(html_path.read_text(encoding="utf-8"))
         return 0
